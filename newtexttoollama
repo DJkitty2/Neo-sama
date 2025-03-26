@@ -2,8 +2,6 @@ import ollama
 import os
 import json
 import psutil
-from ollama import ChatResponse, chat
-
 
 total_memory_bytes = psutil.virtual_memory().total
 
@@ -35,7 +33,7 @@ def load_conversation_history():
 def Get_OS():
    return {"os_name": Get_OS}
 
-# Save the last 10 exchanges
+# Save the last exchanges
 def save_conversation_history():
     with open(HISTORY_FILE, "w") as file:
         json.dump(conversation_history[-10:], file, indent=4)
@@ -119,7 +117,7 @@ def get_llama_response(text):
     
     # Send conversation history to Ollama
     client = ollama.Client(host="http://localhost:11434")
-    response = ChatResponse = chat(
+    response = client.chat(
         model=model, 
         messages=conversation_history,
         tools=[add_two_numbers, subtract_two_numbers, Get_OS],
@@ -128,19 +126,19 @@ def get_llama_response(text):
     # Extract and append AI response to maintain context
     response_text = response["message"]["content"]
     
-    # Detect tool calls in the response
-    if "add" in response_text or "subtract" in response_text:
-        # Example parsing logic for tool calls
-        # This should be replaced with actual logic to extract parameters from response_text
-        if "add" in response_text:
-            a, b = 2, 3  # Example values, should parse from response
-            print(f"Calling add_two_numbers with a={a}, b={b}")
-            response_text = f"The result of adding is: {add_two_numbers(a, b)}"
-        elif "subtract" in response_text:
-            a, b = 5, 2  # Example values, should parse from response
-            print(f"Calling subtract_two_numbers with a={a}, b={b}")
-            response_text = f"The result of subtracting is: {subtract_two_numbers(a, b)}"
-    
+if response.message.tool_calls:
+        # There may be multiple tool calls in the response
+        for tool in response.message.tool_calls:
+            # Ensure the function is available, and then call it
+            if function_to_call := available_functions.get(tool.function.name):
+                print('Calling function:', tool.function.name)
+                print('Arguments:', tool.function.arguments)
+                output = function_to_call(**tool.function.arguments)
+                print('Function output:', output)
+            else:
+                print('Function', tool.function.name, 'not found')
+
+        
     conversation_history.append({"role": "assistant", "content": response_text})
     
     # Save updated conversation history
